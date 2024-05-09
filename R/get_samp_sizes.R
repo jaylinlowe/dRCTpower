@@ -18,10 +18,10 @@
 #' to be \eqn{\sigma^2} and is passed through the `samp_size` function. `samp_size`
 #' is the resulting estimated sample size needed if the RCT population resembles this
 #' subgroup. `samp_size_without` is the estimated sample size needed if the RCT
-#' population resembles this subgroup and reloop is not utilized.
+#' population resembles this subgroup and auxiliary data is not used to improve precision.
 #' @export
 #'
-reloop.samp <- function(Y, X, grouping_col, preds, effect_size, alpha, beta) {
+get_samp_sizes <- function(Y, X, grouping_col, preds, effect_size, alpha, beta) {
 
   if (!grouping_col %in% colnames(X)) {
     stop("grouping_col must be the name of a column in X")
