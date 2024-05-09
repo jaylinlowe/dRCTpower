@@ -6,11 +6,15 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of dRCTpower is to …
+The `dRCT` package contains a Shiny app and other helper functions to
+help users choose a sample size for an RCT that will be analyzed using
+the `dRCT` package. The app generates a range of reasonable sample sizes
+based on an auxiliary dataset that will be used to improve the precision
+of the RCT estimates.
 
 ## Installation
 
-You can install the development version of dRCTpower from
+You can install the development version of `dRCTpower` from
 [GitHub](https://github.com/) with:
 
 ``` r
@@ -18,37 +22,25 @@ You can install the development version of dRCTpower from
 devtools::install_github("jaylinlowe/dRCTpower")
 ```
 
-## Example
+## Functions
 
-This is a basic example which shows you how to solve a common problem:
+- `run_app`: This is the main function, used to run the Shiny app. All
+  sample size calculations, as well as other useful exploratory
+  features, are present in the app.
 
-``` r
-library(dRCTpower)
-#> Warning: replacing previous import 'shiny::runExample' by
-#> 'shinyalert::runExample' when loading 'dRCTpower'
-## basic example code
-```
+- `get_samp_sizes`: This function returns the necessary sample sizes,
+  with and without using auxiliary data in the analysis process, for
+  subgroups defined by a variable in the dataset. If you wish to perform
+  the sample size calculations without using the Shiny app and already
+  know how you wish to define subgroups, use this function.
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+- Subgroup functions: These are used in the Shiny app to generate the
+  subgroups. If you wish to break observations into subgroups for other
+  purposes or investigate different break options outside of the Shiny
+  app, these functions may be useful.
 
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
+  - `numeric_subgroups`: Breaks up a numeric covariate into a specified
+    number of approximately equally sized groups.
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+  - `errror_subgroups`: Divides observations into subgroups based on
+    predicted error.
