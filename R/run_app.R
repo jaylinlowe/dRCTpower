@@ -1,6 +1,6 @@
 #' Create interactive Shiny app to calculate sample sizes using reloop
 #'
-#' @details `run_app` uses other `reloop.samp` functions to display a Shiny app that walks users
+#' @details `run_app` uses other `dRCTpower` functions to display a Shiny app that walks users
 #' through the process of defining subgroups and calculating the sample size that would be
 #' necessary if the RCT population resembled each subgroup. Sample sizes for each subgroup
 #' without using ReLOOP are also displayed. Additionally, users can explore diagnostics
@@ -429,12 +429,12 @@ run_app <- function(...) {
       if (method() == 'Defined by Factor Variable') {
         grouping_col <- input$grouping
         validate(need((class(X()[[grouping_col]]) %in% c("factor", "character")), "Please select a factor or character column for grouping."))
-        results <- reloop.samp(Y(), X(), grouping_col, preds(), effect_size(), alpha(), beta())
+        results <- get_samp_sizes(Y(), X(), grouping_col, preds(), effect_size(), alpha(), beta())
       }
       else if (method() == 'Best-Worst Case Scenarios') {
         subgroups <- error_subgroups(Y(), X(), preds(), num_groups = input$num_groups)
         X_temp <- cbind(X(), subgroups)
-        results <- reloop.samp(Y(), X_temp, grouping_col = "subgroups", preds(), effect_size(), alpha(), beta())
+        results <- get_samp_sizes(Y(), X_temp, grouping_col = "subgroups", preds(), effect_size(), alpha(), beta())
       }
       else if (method() == "Defined by Numeric Variable") {
         max_groups <- input$max_groups
@@ -445,7 +445,7 @@ run_app <- function(...) {
 
         subgroups <- numeric_subgroups(Y(), X(), grouping_col, preds(), max_groups)
         X_temp <- cbind(X(), subgroups)
-        results <- reloop.samp(Y(), X_temp, grouping_col = "subgroups", preds(), effect_size(), alpha(), beta())
+        results <- get_samp_sizes(Y(), X_temp, grouping_col = "subgroups", preds(), effect_size(), alpha(), beta())
       }
       return(results)
     }) %>%
