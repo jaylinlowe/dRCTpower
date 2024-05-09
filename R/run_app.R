@@ -1,9 +1,9 @@
-#' Create interactive Shiny app to calculate sample sizes using reloop
+#' Create interactive Shiny app to calculate sample sizes using auxiliary data
 #'
 #' @details `run_app` uses other `dRCTpower` functions to display a Shiny app that walks users
 #' through the process of defining subgroups and calculating the sample size that would be
 #' necessary if the RCT population resembled each subgroup. Sample sizes for each subgroup
-#' without using ReLOOP are also displayed. Additionally, users can explore diagnostics
+#' if auxiliary data is not used are also displayed. Additionally, users can explore diagnostics
 #' of the initial random forest results and can compare each subgroup to the rest of the
 #' remnant for any covariate.
 #'
@@ -279,7 +279,7 @@ run_app <- function(...) {
     output$ss_with_reloop <- renderValueBox({
       valueBox(
         value = round(samp_size_reloop()) ,
-        subtitle = "Recommended overall sample size if entire remnant is representative of RCT, with reloop",
+        subtitle = "Recommended overall sample size if entire remnant is representative of RCT, with auxiliary data",
         color = "navy"
       )
     })
@@ -294,7 +294,7 @@ run_app <- function(...) {
     output$ss_without_reloop <- renderValueBox({
       valueBox(
         value = round(samp_size_without()),
-        subtitle = "Recommended overall sample size if entire remnant is representative of RCT, Without Reloop",
+        subtitle = "Recommended overall sample size if entire remnant is representative of RCT, without Auxiliary Data",
         color = "navy"
       )
     })
@@ -455,9 +455,9 @@ run_app <- function(...) {
       results <- samp_table()[[1]]
       results <- results %>%
         select(def, num, samp_size, samp_size_without) %>%
-        rename("Subgroup Definition" = "def", "Recommended Sample Size With ReLoop" = "samp_size",
-               "Number of Observations in Subgroup" = "num", "Recommended Sample Size Without ReLoop" = "samp_size_without") %>%
-        relocate(`Recommended Sample Size With ReLoop`, .after = `Recommended Sample Size Without ReLoop`)
+        rename("Subgroup Definition" = "def", "Recommended Sample Size With Auxiliary Data" = "samp_size",
+               "Number of Observations in Subgroup" = "num", "Recommended Sample Size Without Auxiliary Data" = "samp_size_without") %>%
+        relocate(`Recommended Sample Size With Auxiliary Data`, .after = `Recommended Sample Size Without Auxiliary Data`)
       return(results)
     })
 
