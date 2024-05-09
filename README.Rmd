@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The `dRCT` package contains a Shiny app and other helper functions to help users choose a sample size for an RCT that will be analyzed using the `dRCT` package. The app generates a range of reasonable sample sizes based on an auxiliary dataset that will be used to improve the precision of the RCT estimates. 
+The `dRCT` package contains a Shiny app and other helper functions to help users choose a sample size for an RCT that will be analyzed using the `dRCT` package. The app generates a range of reasonable sample sizes based on an auxiliary dataset that will be used to improve the precision of the RCT estimates. These estimates are based on splitting an auxiliary dataset into different subgroups and calculating the necessary sample size if the RCT sample were to resemble that subgroup. 
 
 ## Installation
 
