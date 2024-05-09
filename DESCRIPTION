@@ -1,12 +1,24 @@
 Package: dRCTpower
-Title: What the Package Does (One Line, Title Case)
+Title: Sample Size Calculations for RCTs with Auxiliary Data
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Jaylin", "Lowe", , "jaylincl@umich.edu", role = c("aut", "cre"))
+Description: Shiny app and helper functions to generate a range of reasonable 
+  sample sizes for a RCT that will be analyzed with the `dRCT` package. 
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
+Imports: 
+    caret,
+    dplyr,
+    ggplot2,
+    randomForest,
+    scales,
+    shiny,
+    shinyalert,
+    shinydashboard,
+    stringr
+URL: https://github.com/jaylinlowe/auxRCT
+BugReports: https://github.com/jaylinlowe/auxRCT/issues
+
