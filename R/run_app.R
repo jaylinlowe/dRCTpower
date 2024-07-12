@@ -18,6 +18,10 @@
 #'
 #' @export
 #'
+#'
+
+options(shiny.maxRequestSize=95*1024^2)
+
 run_app <- function(...) {
   ui <- dashboardPage(skin = "purple",
                       dashboardHeader(title = "Sample Size Calculations"),
