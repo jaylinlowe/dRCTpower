@@ -21,4 +21,10 @@ Imports:
     stringr
 URL: https://github.com/jaylinlowe/auxRCT
 BugReports: https://github.com/jaylinlowe/auxRCT/issues
-
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Depends: 
+    R (>= 2.10)
+LazyData: true
