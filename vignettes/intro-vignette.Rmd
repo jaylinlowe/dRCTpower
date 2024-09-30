@@ -1,0 +1,172 @@
+---
+title: "Introduction to `dRCTpower`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to `dRCTpower`}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>", 
+  warning = FALSE, 
+  message = FALSE
+)
+
+library(dplyr)
+library(stringr)
+library(tidyr)
+```
+
+
+The `dRCTpower` package performs power analysis for an experiment that will be analyzed using the `dRCT` package. For this package to be useful, you should meet the following criteria:
+
+* You are interested in choosing a sample size for a RCT
+* You have access to an auxiliary data set with the same outcome of interest and similar covariates as your RCT 
+* You intend to use this auxiliary data set to improve precision in your RCT estimate, namely by using the `dRCT` package to analyze your RCT 
+
+To use the package, install it from Github and load it: 
+```{r setup}
+# install.packages(devtools)
+# devtools::install_github("jaylinlowe/dRCTpower")
+library(dRCTpower)
+```
+
+
+## Example: TAKS Data set
+
+We will be using the `schools` data as an example of a auxiliary data set. This data set contains publicly available information for 1,418 schools in Texas. The main outcome variable is `taks08`, the passing rate on the Texas Assessment of Knowledge and Skills (TAKS) in 2008 for all students. 
+```{r}
+data(schools, package = "dRCTpower")
+summary(schools$taks08)
+```
+
+There are also 13 alternative outcome variables, all beginning with `out`. The variables follow the naming structure `outm[B]08` where `[B]` takes the values of B, H, W, M, F, and E which indicate subgroups as in the table below and `08` indicates the 2007/8 school year. 
+
+| Code |   Subgroup   |
+|------|--------------|
+|   B  | Black        |
+|   E  | Low SES      |
+|   F  | Female       |
+|   H  | Hispanic     |
+|   M  | Male         |
+|   W  | White        |
+
+For instance, `outmW08` is the TAKS passing rate for White students in that school in 2008. We will focus on `taks08` in this example but the other outcome variables are included for additional exploratory purposes. 
+
+The remaining 35 covariates in `schools` contain demographic information on the schools and TAKS passing rates from previous years. The covariates about TAKS passing rates follow the naming structure `taks[group][subject]_[grade][standard year]_[test year]`, where `[group]`, `[subject]`, `[grade]`, `[standard year]`, and `[test year]` take the values explained in the table below: 
+
+
+| Index         | Explanation                            | Possible Values | Explanation            |
+|---------------|----------------------------------------|-----------------|------------------------|
+| group         | Group passing rate is calculated for   | C               | school campus          |
+|               |                                        | F               | female students        |
+|               |                                        | M               | male students          |
+| subject       | Sub-test subject                       | A               | all tests              |
+|               |                                        | M               | mathematics            |
+| grade         | Grade passing rate is calculated for   | g7              | Seventh grade students |
+|               |                                        | sum             | Sum of all grades      |
+| standard year | Year the pass cutoff was determined for| 07              | 2007                   |
+|               |                                        | 08              | 2008                   |
+| test year     | Year students took the test            | 06              | 2006                   |
+|               |                                        | 07              | 2007                   |
+
+For example, `taksCA_sum08_07` is the TAKS passing rate for the entire school in all subjects, assessed for all grades according to the 2008 standard, for students who took the test in 2007. Covariates that are not about TAKS passing rates generally have self-explanatory names; however, the table below also lists the meanings: 
+
+| Column name              |   Explanation                                                              |
+|--------------------------|----------------------------------------------------------------------------|
+|   all_stud_n             | Number of students                                                         |
+|   grade8_n               | Number of students in grade 8                                              |
+|   stud_teach_rat         | Number of students per teacher                                             |
+|   all_exp                | Total expenses                                                             |
+|   inst_exp               | Instructional expenses                                                     |
+|   lead_exp               | School leadership expenses                                                 |
+|   supp_exp               | Support services expenses                                                  |
+|   ed_aide                | Number of educational aides                                                |
+|   teach_salary           | Average teacher salary                                                     |
+|   teach_expr             | Average years of experience of teachers                                    |
+|   perc_teach_white       | Percent of White teachers                                                  |
+|   perc_teach_black       | Percent of Black teachers                                                  |
+|   perc_teach_hisp        | Percent of Hispanic teachers                                               |
+|   perc_teach_female      | Percent of Female teachers                                                 |
+|   perc_stud_white        | Percent White students                                                     |
+|   perc_stud_black        | Percent Black students                                                     |
+|   perc_stud_hisp         | Percent Hispanic students                                                  |
+|   perc_stud_api          | Percent Asian/Pacific Islander students                                    |
+|   perc_stud_alp          | Percent Special Education students                                         |
+|   perc_stud_bil          | Percent ESL students                                                       |
+|   perc_stud_tag          | Percent Gifted & Talented students                                         |
+|   perc_campus_mobility   | Percent of students who missed more than six weeks of school               |
+|   female_mobile_particip | Percent of female students who participated in TAKS using a mobile system  |
+
+
+PUT THIS SOMEWHERE ELSE 
+
+There is some missing data in `schools`. The following table shows the number of missing values for each covariate with missing values: 
+```{r}
+schools %>%
+  select(!starts_with("out")) %>%
+  summarize_all(~ sum(is.na(.))) %>%
+  pivot_longer(everything()) %>%
+  filter(value >= 1) %>%
+  arrange(desc(value)) 
+```
+
+
+
+Imagine that we are planning an experiment to test the effectiveness of a new algebra curriculum. We will determine effectiveness based on the TAKS passing rates and plan to use `schools` as an auxiliary data set to improve precision when analyzing our RCT. 
+
+## Loading Data 
+
+To run the Shiny app, type `run_app` in your R console. A separate window will pop up with the app. You should see something that looks like this: 
+
+![](app_tab1.png)
+To load the dataset for this vignette, choose "Use example data" from the dropdown menu under "Choose data option". This will load the `schools` dataset. If you wish to follow along with your own dataset, click "Browse" instead and navigate to the dataset you would like to use. Once you have done this, the second menu will populate with the names of the columns. 
+
+For this example, we will be using `taks08`, the passing rate on TAKS for all students and all grades in 2008. You may experiment with using the other outcome variables instead, if you wish.  
+
+Once you have uploaded the data and chosen an outcome variable, click the "Next: Choose Random Forest Variables" button. 
+
+## Choosing Random Forest Variables
+
+## Random Forest Variable Investigation (change this name?)
+
+## Initial Sample Size Calculation
+
+## Subgroup Sample Size Calculations
+
+## Subgroup Investigation 
+
+
+## Things to think about/ask about
+
+1. The schools dataset is stored as a RDA in the data folder because that's how it's recommended for packages. But, then we can't include it in the Shiny app? Should I store it as a CSV? Or is there a way to include it as an example in the Shiny app so it doesn't need to be uploaded? 
+2. I want all the code needed to create schools.csv to be in the data-raw folder, which involves some of Charlotte's code and stuff from the edm tutorial. Need to ask Charlotte if there's anything private in there? 
+3. Need to remove the rownames in schools 
+4. Should I rename the covariates? Or spend a bunch of time talking about to decode what they mean? 
+
+One section per tab of the Shiny app?
+
+pick an example dataset (or a fake toy dataset) and run through it?
+technically it doesn't need to be a population a RCT was run on, it could just be any auxiliary dataset where it's concievable that an RCT might be run 
+does it have to be education related? 
+
+things the dataset should have:
+-some missing values
+-some correlated variables that are both highly predictive of the outcome 
+-some data points that are hard to predict and some that are easier 
+-start with Charlotte's CTA dataset and go from there? (can that one be publicaly used?)
+-using CTA small dataset - there aren't any missing values in here? I can probably go back and recreate the dataset without it? or I can back out the missing values? 
+- I should have the top variable names and ideally missing columns for each of those, but I'm guessing I did this in a weird way? - so just adjust my data process so that I have all of the missing columns corresponding to the values I picked? (wait no, I did that? double check that was done)
+
+
+How do I write a vignette when most of it won't be in code chunks and is instead in a Shiny app? 
+
+couple of ideas:
+1. include screenshots of the shiny app in the vignette
+2. focus on the function options and not the shiny app? 
+3. Some combination of both? 
+
+
