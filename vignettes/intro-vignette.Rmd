@@ -115,8 +115,7 @@ schools %>%
 ```
 
 
-
-Imagine that we are planning an experiment to test the effectiveness of a new algebra curriculum. We will determine effectiveness based on the TAKS passing rates and plan to use `schools` as an auxiliary data set to improve precision when analyzing our RCT. 
+Imagine that we are planning an experiment to test the effectiveness of a new algebra curriculum. We will determine effectiveness based on the TAKS passing rates and plan to use `schools` as an auxiliary data set to improve precision when analyzing our RCT. In reality, this RCT was already designed and implemented starting in the 2007-2008 school year. TAKS passing rates from 2008 were used as the outcome variable; we use this as our outcome variable too despite the fact that this RCT would have been designed without knowledge of passing rates in 2008. Instead, we would have used passing rates from 2007. 
 
 ## Loading Data 
 
@@ -130,6 +129,14 @@ For this example, we will be using `taks08`, the passing rate on TAKS for all st
 Once you have uploaded the data and chosen an outcome variable, click the "Next: Choose Random Forest Variables" button. 
 
 ## Choosing Random Forest Variables
+
+The second tab allows the user to specify which variables should be included in a random forest. Our first priority is to remove all other outcome variables; these should not be used as covariates. After this, there are a few things to consider when choosing variables:
+
+* Correlation - if some variables are very correlated, it may not be necessary to include all of them
+* Time - A random forest with fewer variables will be faster.
+* Subgroups - you will only be able to look at subgroups formed from variables included here. 
+
+In general, we recommend starting with a large group of variables and potentially paring them down later. As we will see in the next section, the next tab displays correlations and allows for some exploratory analysis, potentially allowing the user to return to the first tab and change their original decisions. 
 
 ## Random Forest Variable Investigation (change this name?)
 
