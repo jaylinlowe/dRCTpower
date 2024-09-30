@@ -34,14 +34,21 @@ run_app <- function(...) {
                         navbarPage("", id = "myNavbar",
                                    tabPanel("Upload Dataset",
                                             fluidPage(
-                                              fileInput("dataset", "Choose CSV File",
+                                              selectInput("data_choice", "Choose data option:", c("Upload your own data", "Use example data"), multiple = F),
+
+                                              conditionalPanel(condition = "input.data_choice == 'Upload your own data'", fileInput("dataset", "Choose CSVFile",
                                                         multiple = TRUE,
                                                         accept = c("text/csv",
                                                                    "text/comma-separated-values,text/plain",
                                                                    ".csv")),
+                                                        checkboxInput("header", "Header", FALSE),
+                                                        helpText("Note: Please do not replace missing values with other characters in the data frame.")),
 
-                                              checkboxInput("header", "Header", TRUE),
-                                              helpText("Note: Please do not replace missing values with other characters in the data frame."),
+                                              conditionalPanel(condition = "input.data_choice == 'Use example data'", helpText("The example dataset consists of
+                                              data on 1418 schools in Texas. The outcome variable should be 'taks08', the passing rate on the TAKS standardized test
+                                              in 2008. Additional outcome variables, starting with 'out' are also available. For more information on this dataset, see
+                                              the vignette.")),
+
                                               selectInput("out", "Select output column:", c('Upload dataset to see column choices'), multiple = F),
                                               actionButton(inputId = "button1", label = "Next: Choose Random Forest Variables")
                                             ))
@@ -52,11 +59,21 @@ run_app <- function(...) {
 
   server <- function(input, output, session) {
 
+
     #PAGE 1 - UPLOAD DATASET
+    data_choice <- reactive({input$data_choice})
+
     data <- reactive({
-      req(input$dataset)
-      df <- read.csv(input$dataset$datapath, header = input$header)
-      return(df)
+      if (data_choice() == 'Upload your own data') {
+          req(input$dataset)
+          df <- read.csv(input$dataset$datapath, header = input$header)
+          return(df)
+        }
+      else if (data_choice() == 'Use example data') { #load schools package saved in data folder
+        load("../data/schools.rda") #this loading isn't working
+        df <- schools
+        return(df)
+      }
     })
 
     observeEvent(data(), {
