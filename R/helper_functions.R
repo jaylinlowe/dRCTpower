@@ -227,14 +227,29 @@ mean_imputation <- function(df) {
     mutate(across(where(is.numeric), ~case_when(is.na(.x) ~ mean(.x, na.rm = TRUE),
                                                 TRUE ~ .x)))
 
-  #get table count of NAs per column, then pull any names with 0 and remove those columns
-  na_count_df <- df_new %>% summarise(across(ends_with("_mis"), ~ sum(is.na(.))))
-  cols_to_remove <- colnames(na_count_df)[which(na_count_df == 0)]
-  final_cols_to_remove <- setdiff(cols_to_remove, orig_names) #solves problem of original columns ending in _mis
-
+  names_to_remove <- df_new %>%
+    summarize(across(ends_with("mis"), sum)) %>%
+    pivot_longer(everything()) %>%
+    filter(value == 0) %>%
+    pull(name)
 
   df_new <- df_new %>%
-    select(-all_of(final_cols_to_remove))
+       select(-all_of(names_to_remove))
+
+
+  #get table count of NAs per column, then pull any names with 0 and remove those columns
+
+  #the problem is that we only want _mis columns that hold something useful
+  #and we don't want to remove any columns that were _mis when we started
+  #why don't we just remove columns that have _mis and sum to 0??
+  # na_count_df <- df_new %>% summarise(across(ends_with("_mis"), ~ sum(is.na(.)))) #always going to be 0
+  # print(na_count_df)
+  # cols_to_remove <- colnames(na_count_df)[which(na_count_df == 0)]
+  # final_cols_to_remove <- setdiff(cols_to_remove, orig_names) #solves problem of original columns ending in _mis
+  #
+  #
+  # df_new <- df_new %>%
+  #   select(-all_of(final_cols_to_remove))
 
   return(df_new)
 }
