@@ -1,5 +1,6 @@
 #' Create interactive Shiny app to calculate sample sizes using auxiliary data
 #'
+#'@name run_app
 #' @details `run_app` uses other `dRCTpower` functions to display a Shiny app that walks users
 #' through the process of defining subgroups and calculating the sample size that would be
 #' necessary if the RCT population resembled each subgroup. Sample sizes for each subgroup
@@ -13,8 +14,11 @@
 #' @import shinydashboard
 #' @import shinyalert
 #' @import scales
+#' @import shinyscreenshot
 #'
-#' @param ...
+#' @param screenshot if TRUE, takes a screenshot of each tab when the button to
+#' go to the next tab is clicked. The images in the vignette can be reproduced by
+#' setting `screenshot = TRUE` and using the example data.
 #'
 #' @export
 #'
@@ -22,7 +26,7 @@
 
 options(shiny.maxRequestSize=95*1024^2)
 
-run_app <- function(...) {
+run_app <- function(screenshot = FALSE, ...) {
   ui <- dashboardPage(skin = "purple",
                       dashboardHeader(title = "Sample Size Calculations"),
 
@@ -95,6 +99,7 @@ run_app <- function(...) {
                   position = 'after',
                   target = "Upload Dataset"
         )
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab1")}
       }
       updateTabItems(session, "myNavbar", selected = "Initial Random Forest Parameters")
     })
@@ -125,6 +130,7 @@ run_app <- function(...) {
     button2_counter <- reactiveVal(0)
     observeEvent(input$button2, {
       button2_counter(button2_counter()+1)
+
       if (button2_counter() == 1 ) {
         insertTab(inputId = "myNavbar",
                   tabPanel("Random Forest Variable Investigation",
@@ -144,6 +150,7 @@ run_app <- function(...) {
                   position = 'after',
                   target = "Initial Random Forest Parameters"
         )
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab2")}
       }
       updateTabItems(session, "myNavbar", selected = "Random Forest Variable Investigation")
     })
@@ -274,6 +281,7 @@ run_app <- function(...) {
                   position = 'after',
                   target = "Random Forest Variable Investigation"
         )
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab3")}
       }
       updateTabItems(session, "myNavbar", selected = "Initial Results")
     })
@@ -367,6 +375,7 @@ run_app <- function(...) {
                   position = 'after',
                   target = "Initial Results"
         )
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab4")}
       }
       updateTabItems(session, "myNavbar", selected = "Subgroup Results")
     })
@@ -505,6 +514,7 @@ run_app <- function(...) {
                   position = 'after',
                   target = "Subgroup Results"
         )
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab5")}
       }
       updateTabItems(session, "myNavbar", selected = "Subgroup Investigation")
     })
