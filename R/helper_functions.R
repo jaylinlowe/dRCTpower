@@ -69,7 +69,8 @@ correlation_plot <- function(df, variables) {
       high = muted("navyblue"),
       midpoint = 0,
       limits = c(-1, 1)) +
-    scale_x_discrete(limits = rev)
+    scale_x_discrete(limits = rev) +
+    theme(axis.text.x = element_text(angle = 90))
   return(p)
 }
 
