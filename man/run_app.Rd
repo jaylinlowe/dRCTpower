@@ -2,21 +2,20 @@
 % Please edit documentation in R/run_app.R
 \name{run_app}
 \alias{run_app}
-\title{Create interactive Shiny app to calculate sample sizes using reloop}
-\usage{
-run_app(...)
-}
+\title{Create interactive Shiny app to calculate sample sizes using auxiliary data}
 \arguments{
-\item{...}{}
+\item{screenshot}{if TRUE, takes a screenshot of each tab when the button to
+go to the next tab is clicked. The images in the vignette can be reproduced by
+setting \code{screenshot = TRUE} and using the example data.}
 }
 \description{
-Create interactive Shiny app to calculate sample sizes using reloop
+Create interactive Shiny app to calculate sample sizes using auxiliary data
 }
 \details{
-\code{run_app} uses other \code{reloop.samp} functions to display a Shiny app that walks users
+\code{run_app} uses other \code{dRCTpower} functions to display a Shiny app that walks users
 through the process of defining subgroups and calculating the sample size that would be
 necessary if the RCT population resembled each subgroup. Sample sizes for each subgroup
-without using ReLOOP are also displayed. Additionally, users can explore diagnostics
+if auxiliary data is not used are also displayed. Additionally, users can explore diagnostics
 of the initial random forest results and can compare each subgroup to the rest of the
 remnant for any covariate.
 }

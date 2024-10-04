@@ -74,7 +74,7 @@ run_app <- function(screenshot = FALSE, ...) {
           return(df)
         }
       else if (data_choice() == 'Use example data') { #load schools package saved in data folder
-        load("../data/schools.rda") #this loading isn't working
+        load("../data/schools.rda")
         df <- schools
         return(df)
       }
@@ -94,8 +94,14 @@ run_app <- function(screenshot = FALSE, ...) {
                   tabPanel("Initial Random Forest Parameters",
                            helpText("Select variables to include in random forest: "),
                            actionLink("selectall","Select All"),
-                           checkboxGroupInput("variables", "", c("Upload dataset to see column choices")),
-                           actionButton(inputId = "button2", label = "Next: Run Random Forest")),
+                           fluidPage(
+                             fluidRow(
+                               column(width = 4, checkboxGroupInput(inline = TRUE, inputId = "variables1", "", label = c("Upload dataset to see column choices"))),
+                               column(width = 4, checkboxGroupInput(inline = TRUE, inputId = "variables2", "", label = c(""))),
+                               column(width = 4, checkboxGroupInput(inline = TRUE, inputId = "variables3", "", label = c(""))),
+                             )
+                             ),
+                           actionButton(inputId = "button2", label = "Next: Run Random Forest")), #put this in a pane to the left
                   position = 'after',
                   target = "Upload Dataset"
         )
@@ -106,19 +112,42 @@ run_app <- function(screenshot = FALSE, ...) {
 
     # update variable choices based on selected data set
     observeEvent(input$button1, {
-      updateCheckboxGroupInput(session, "variables", choices=setdiff(colnames(data()), input$out))
+      all_variables <- setdiff(colnames(data()), input$out)
+      group_indices <- ceiling(seq_along(all_variables)/(floor(length(all_variables)/3)))
+      group_indices[which(group_indices == 4)] <- seq(1:length(which(group_indices == 4)))
+
+      vars1 <- all_variables[which(group_indices == 1)]
+      vars2 <- all_variables[which(group_indices == 2)]
+      vars3 <- all_variables[which(group_indices == 3)]
+
+      updateCheckboxGroupInput(session, "variables1", choices=vars1)
+      updateCheckboxGroupInput(session, "variables2", choices=vars2)
+      updateCheckboxGroupInput(session, "variables3", choices=vars3)
     })
 
     # create select all option for variable check boxes
     observe({
+      all_variables <- setdiff(colnames(data()), input$out)
+      group_indices <- ceiling(seq_along(all_variables)/(floor(length(all_variables)/3)))
+      group_indices[which(group_indices == 4)] <- seq(1:length(which(group_indices == 4)))
+
+      vars1 <- all_variables[which(group_indices == 1)]
+      vars2 <- all_variables[which(group_indices == 2)]
+      vars3 <- all_variables[which(group_indices == 3)]
+
       if(is.null(input$selectall)) return(NULL)
+
       else if (input$selectall%%2 == 0)
       {
-        updateCheckboxGroupInput(session,"variables",choices=setdiff(colnames(data()), input$out))
+        updateCheckboxGroupInput(session,"variables1",choices=vars1)
+        updateCheckboxGroupInput(session,"variables2",choices=vars2)
+        updateCheckboxGroupInput(session,"variables3",choices=vars3)
       }
       else
       {
-        updateCheckboxGroupInput(session,"variables",choices=setdiff(colnames(data()), input$out),selected=setdiff(colnames(data()), input$out))
+        updateCheckboxGroupInput(session,"variables1",choices=vars1,selected=vars1)
+        updateCheckboxGroupInput(session,"variables2",choices=vars2,selected=vars2)
+        updateCheckboxGroupInput(session,"variables3",choices=vars3,selected=vars3)
       }
     })
 
