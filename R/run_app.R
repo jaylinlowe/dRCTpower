@@ -101,7 +101,7 @@ run_app <- function(screenshot = FALSE, ...) {
                                column(width = 4, checkboxGroupInput(inline = TRUE, inputId = "variables3", "", label = c(""))),
                              )
                              ),
-                           actionButton(inputId = "button2", label = "Next: Run Random Forest")), #put this in a pane to the left
+                           actionButton(inputId = "button2", label = "Next: Run Random Forest")),
                   position = 'after',
                   target = "Upload Dataset"
         )
@@ -109,6 +109,8 @@ run_app <- function(screenshot = FALSE, ...) {
       }
       updateTabItems(session, "myNavbar", selected = "Initial Random Forest Parameters")
     })
+
+
 
     # update variable choices based on selected data set
     observeEvent(input$button1, {
@@ -195,9 +197,7 @@ run_app <- function(screenshot = FALSE, ...) {
       out_name <- input$out
       Y <- data()[[out_name]]
       X <- mean_imputation(data()[, !names(data()) == out_name])
-      variables <- get_var_names(input$variables, X )
-      #print(variables)
-      #print(colnames(cbind(Y,X)))
+      variables <- get_var_names(c(input$variables1, input$variables2, input$variables3), X )
       f <- as.formula(paste("Y ~", paste(variables, collapse = " + ")))
       rf.model <- randomForest::randomForest(f, data = cbind(Y, X))
       preds <- predict(rf.model)
