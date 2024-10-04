@@ -26,7 +26,7 @@
 
 options(shiny.maxRequestSize=95*1024^2)
 
-run_app <- function(screenshot = FALSE, ...) {
+run_app <- function(screenshot = FALSE, seed = NULL, ...) {
   ui <- dashboardPage(skin = "purple",
                       dashboardHeader(title = "Sample Size Calculations"),
 
@@ -62,6 +62,10 @@ run_app <- function(screenshot = FALSE, ...) {
   )
 
   server <- function(input, output, session) {
+
+    if (!is.null(seed)) {
+      set.seed(seed)
+    }
 
 
     #PAGE 1 - UPLOAD DATASET
@@ -105,7 +109,7 @@ run_app <- function(screenshot = FALSE, ...) {
                   position = 'after',
                   target = "Upload Dataset"
         )
-        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab1")}
+        if (screenshot) {shinyscreenshot::screenshot(filename = "app_tab1", scale = 1)}
       }
       updateTabItems(session, "myNavbar", selected = "Initial Random Forest Parameters")
     })
@@ -194,6 +198,7 @@ run_app <- function(screenshot = FALSE, ...) {
 
     #run initial random forest
     rf_results <- reactive({
+      showModal(modalDialog("Running the random forest. This may take a couple of minutes.", footer=NULL))
       out_name <- input$out
       Y <- data()[[out_name]]
       X <- mean_imputation(data()[, !names(data()) == out_name])
@@ -202,6 +207,7 @@ run_app <- function(screenshot = FALSE, ...) {
       rf.model <- randomForest::randomForest(f, data = cbind(Y, X))
       preds <- predict(rf.model)
       df <- cbind(Y, preds, X)
+      removeModal()
       return(list(df, rf.model))
     }) %>%
       bindEvent(input$button2)
@@ -491,9 +497,11 @@ run_app <- function(screenshot = FALSE, ...) {
         results <- get_samp_sizes(Y(), X(), grouping_col, preds(), effect_size(), alpha(), beta())
       }
       else if (method() == 'Best-Worst Case Scenarios') {
+        showModal(modalDialog("This method requires running a second random forest. This may take a few minutes.", footer=NULL))
         subgroups <- error_subgroups(Y(), X(), preds(), num_groups = input$num_groups)
         X_temp <- cbind(X(), subgroups)
         results <- get_samp_sizes(Y(), X_temp, grouping_col = "subgroups", preds(), effect_size(), alpha(), beta())
+        removeModal()
       }
       else if (method() == "Defined by Numeric Variable") {
         max_groups <- input$max_groups
