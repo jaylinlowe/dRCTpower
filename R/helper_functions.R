@@ -142,28 +142,33 @@ subgroup_plot <- function(Y, X, subgroup_def, var, out) {
 #' @param df data frame of data
 #' @param subgroup_def vector with "Subgroup"/"General Population" to define observations
 #'
-#' @return A ggplot density plot comparing the number of NAs for each observation
+#' @return A ggplot bar plot comparing the frequency of the number of NA values per observation
 #' in the subgroup to the rest of the population
 #' @export
 #'
 #' @noRd
 na_plot <- function(df, subgroup_def) {
   df <- cbind(df, subgroup_def)
-  extra_subgroup <- filter(df, subgroup_def == "Subgroup")
-  extra_subgroup$`subgroup_def` <- rep("General Population", nrow(extra_subgroup))
-  df <- rbind(df, extra_subgroup)
+
 
   na_count <- rowSums(is.na(df))
+
+
   if (sum(na_count) > 0) {
-    na_df <- data.frame(cbind(na_count, subgroup_def))
-    na_df$na_count <- as.numeric(na_df$na_count)
-    colnames(na_df) <- c("na_count", "Group Definition")
-    p <- ggplot(na_df, aes(x = na_count, fill = `Group Definition`)) +
-      geom_density(stat = "count", alpha = 0.5) +
+    na_df <- data.frame(cbind(na_count, subgroup_def)) %>%
+      group_by(na_count, subgroup_def) %>%
+      summarize(count = n()) %>%
+      group_by(subgroup_def) %>%
+      mutate(prop = count/sum(count)) %>%
+      mutate(na_count = as.numeric(na_count)) %>%
+      arrange(na_count, desc = FALSE)
+
+    p <- ggplot(na_df, aes(x = na_count, y = prop, fill = subgroup_def)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(fill = "", x = "Number of NA Values", y = "Frequency") +
       scale_fill_manual(values = c(rgb(95, 92, 163, max = 255), rgb(36, 45, 49, max = 255))) +
-      labs(fill = "", x = "Number of NA Values", y = "Count") +
       theme(legend.position = "bottom") +
-      ggtitle("Distribution of Number of NA Values per Observation")
+      ggtitle("Frequency of Number of NA Values per Observation")
   }
   else {p <- NULL}
   return(p)
