@@ -106,9 +106,10 @@ importance_split <- function(df) {
 #' @noRd
 subgroup_plot <- function(Y, X, subgroup_def, var, out) {
   df <- cbind(Y, subgroup_def, X)
-  extra_subgroup <- filter(df, `subgroup_def` == "Subgroup")
-  extra_subgroup$`subgroup_def` <- rep("General Population", nrow(extra_subgroup))
-  df <- rbind(df, extra_subgroup)
+
+  # extra_subgroup <- filter(df, `subgroup_def` == "Subgroup")
+  # extra_subgroup$`subgroup_def` <- rep("General Population", nrow(extra_subgroup))
+  # df <- rbind(df, extra_subgroup)
 
   if (var == out) {
     var <- "Y"
