@@ -556,8 +556,11 @@ run_app <- function(screenshot = FALSE, seed = NULL, ...) {
       updateTabItems(session, "myNavbar", selected = "Subgroup Investigation")
     })
 
+    grouping_col <- reactive({grouping_col <- input$num_var})
+
+
     observeEvent(input$button5, {
-      updateSelectInput(session, "subgroup", choices=samp_table()[[1]]$def)
+      updateSelectInput(session, "subgroup", choices = samp_table()[[1]]$def)
     })
 
     observeEvent(input$button5, {

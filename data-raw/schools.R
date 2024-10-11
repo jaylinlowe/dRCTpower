@@ -6,6 +6,7 @@ library(dplyr)
 library(tidyr)
 library(kableExtra)
 library(randomForest)
+library(stringr)
 
 
 
@@ -25,6 +26,7 @@ covs_ms <- covs_ms %>%
          perc_stud_alp = CPETSPEP_67, perc_stud_bil = CPETBILP_67, perc_stud_tag = CPETGIFP_67) %>%
   select(CAMPUS, GRDSPAN, starts_with("pre"),all_of(var.names.clean$var_clean), everything())
 
+
 covs_ms_noprep <- covs_ms_noprep %>%
   rename(all_stud_n = CPETALLC_67, grade8_n = CPETG08C_67, stud_teach_rat = CPSTKIDR_67,
          all_exp = CPFPAALLT_67, inst_exp = CPFEAINSP_67, lead_exp = CPFEAADSP_67, supp_exp = CPFEASUPP_67,
@@ -35,6 +37,8 @@ covs_ms_noprep <- covs_ms_noprep %>%
          perc_stud_api = CPETPACP_67, perc_stud_white = CPETWHIP_67,
          perc_stud_alp = CPETSPEP_67, perc_stud_bil = CPETBILP_67, perc_stud_tag = CPETGIFP_67) %>%
   select(CAMPUS, GRDSPAN, starts_with("pre"),all_of(var.names.clean$var_clean), everything())
+
+covs_ms_noprep <- mean_imputation(covs_ms_noprep)
 
 ## Form Fake RCT
 
@@ -110,8 +114,8 @@ out_ms <- out_ms %>%
 
 aux_dat = out_ms %>%
   filter(!(CAMPUS %in% rct$CAMPUS)) %>%
-  left_join(covs_ms, by = "CAMPUS") %>%
-  select(CAMPUS, GRDSPAN, taks08, starts_with("pre"),
+  left_join(covs_ms_noprep, by = "CAMPUS") %>%
+  select(CAMPUS, GRDSPAN, CFLCHART, taks08, starts_with("pre"),
          all_of(var.names.clean$var_clean), everything())
 
 
@@ -129,7 +133,7 @@ aux_dat_mod <- aux_dat %>%
   select(-all_stud_n, -grade8_n) %>%
   select(-(starts_with("out") & ends_with("_na"))) %>%
   select(-starts_with("GRDSPAN")) %>%
-  select(-exist34, -exist45, -exist56, -exist78) %>%
+  #select(-exist34, -exist45, -exist56, -exist78) %>%
   select(-(starts_with("out") & ends_with("09")))
 
 
@@ -138,7 +142,7 @@ df_without_out <- aux_dat_mod %>%
   select(-starts_with("out"))
 
 set.seed(29181)
-rf <- randomForest(taks08 ~ . - CAMPUS, data = df_without_out)
+rf <- randomForest(taks08 ~ . - CAMPUS, data = df_without_out) #now we have missing values
 
 var_scores <- caret::varImp(rf)
 
@@ -166,7 +170,7 @@ for (i in 1:length(top_vars)) {
   }
 }
 
-small_var_names <- unique(small_var_names)
+small_var_names <- c(unique(small_var_names), "CFLCHART")
 
 #need to add background names and other outcome variables
 outcome_names <- aux_dat %>%
@@ -197,13 +201,12 @@ for (col_name in colnames(schools_no_mis)) {
 
 # taks[C][A]_[g7][07]_[06]
 
-# C, F, or M for campus, female or male
+# C, F, M, or E for campus, female or male, or economically disadvantaged
 # A or M for all or math
 # g7 or sum
 #07 or 08 for the testing standard
-#06 or 07 for the year of testing??
+#06 or 07 for the year of testing
 
-# TO DO - RENAME ANNOYING COLUMNS
 schools <- select(schools_no_mis, -ends_with("_mis")) %>%
   select(-starts_with("outh")) %>% #remove high school outcomes
   rename(taksCM_sum08_07 = CA311PM07R_67,
@@ -222,9 +225,10 @@ schools <- select(schools_no_mis, -ends_with("_mis")) %>%
          taksMM_g707_07= CM007TM07R_67,
          taksFA_sum08_07 = CF311PA07R_67,
          perc_campus_mobility = CPEMALLP_67,
-         female_mobile_particip = CFMYA07R_67,
          taksMA_sum08_07 =CM311PA07R_67,
-         taksCM_sum08_06 = CA311PM06R_67,
-         taksCM_sum07_07_commended = CA311CM07R_67)
+         taksCM_sum07_07_commended = CA311CM07R_67,
+         taksC_mobile_particp_07 = CAMYA07R_67,
+         district = DISTRICT,
+         charter_school = CFLCHART)
 
 usethis::use_data(schools, overwrite = TRUE)
