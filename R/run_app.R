@@ -490,6 +490,7 @@ run_app <- function(screenshot = FALSE, seed = NULL, ...) {
 
     method <- reactive({input$method})
 
+
     samp_table <- reactive({
       if (method() == 'Defined by Factor Variable') {
         grouping_col <- input$grouping
@@ -555,8 +556,6 @@ run_app <- function(screenshot = FALSE, seed = NULL, ...) {
       }
       updateTabItems(session, "myNavbar", selected = "Subgroup Investigation")
     })
-
-    grouping_col <- reactive({grouping_col <- input$num_var})
 
 
     observeEvent(input$button5, {

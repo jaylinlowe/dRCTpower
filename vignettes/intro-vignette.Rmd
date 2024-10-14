@@ -18,6 +18,8 @@ knitr::opts_chunk$set(
 library(dplyr)
 library(stringr)
 library(tidyr)
+library(magick)
+library(randomForest)
 ```
 
 
@@ -25,7 +27,7 @@ The `dRCTpower` package performs power analysis for an experiment that will be a
 
 * You are interested in choosing a sample size for a RCT
 * You have access to an auxiliary data set with the same outcome of interest and similar covariates as your RCT 
-* You intend to use this auxiliary data set to improve precision in your RCT estimate, namely by using the `dRCT` package to analyze your RCT 
+* You intend to use this auxiliary data set to improve precision in your RCT estimate, namely by using the `dRCT` package to analyze your RCT.  
 
 To use the package, install it from Github and load it: 
 ```{r setup}
@@ -34,16 +36,32 @@ To use the package, install it from Github and load it:
 library(dRCTpower)
 ```
 
+## dRCTpower Basics
+
+Traditionally, sample sizes for RCTs are calculated using the following formula:
+$$
+n = 2 \sigma^2 \frac{(\xi_{1-\alpha/2} + \xi_{1-\beta})^2}{\Delta_A^2}
+$$
+where $\Delta_A$ is the effect size, which is typically set to $20 \%$ of the standard deviation of outcome in the entire population. In our case, we will use $20 \%$ of the standard deviation of the outcome for each particular subgroup. $\xi_{1-\alpha/2}$ is the critical value obtained from a normal distribution in order to obtain a Type I error rate equal to $\alpha$, assuming a one-sided test. Similarly, $\xi_{1-\beta}$ is the critical value necessary for a Type II error rate equal to $\beta$ (i.e. power of $1-\beta$). 
+
+$\sigma^2$ is the true variance of the outcome variable in the population, which is typically unknown. In traditional power calculations, $\sigma^2$ is often estimated from the variance of the outcome from a sample. In this way, auxiliary data has long been used in power calculations. However, the `dRCTpower` package addresses a different need: power calculations when the auxiliary data is primarily being used for covariate adjustment in analysis, rather than solely as a method of determining sample size. 
+
+When auxiliary data is used for covariate adjustment for an RCT, the gains in precision for the RCT estimate are determined by how predictive a model trained on the auxiliary data will be for observations in the future RCT data. If the auxiliary model generalizes well to the RCT, the gains made in precision will be much larger than if the auxiliary model is not predictive of the RCT outcomes. If the auxiliary model is completely non-predictive in the RCT, there will be no improvement in precision. As a result, knowledge about the predictive power of the auxiliary model on the RCT data is crucial for calculating the necessary sample size. 
+
+Since we don't have the RCT data available ahead of time, we estimate needed sample sizes by repeatedly choosing a subgroup of the auxiliary data and calculating the sample size we would need if that subgroup was the RCT and the rest of the data was the auxiliary data. To do so, we obtain predictions for every observation in the subgroup, independent of that observations itself, and then replace $\sigma^2$ with the variance of the residuals from these predictions. More information can be found in the paper: https://educationaldatamining.org/edm2024/proceedings/2024.EDM-short-papers.46/2024.EDM-short-papers.46.pdf
+
 
 ## Example: TAKS Data set
 
-We will be using the `schools` data as an example of a auxiliary data set. This data set contains publicly available information for 1,418 schools in Texas. The main outcome variable is `taks08`, the passing rate on the Texas Assessment of Knowledge and Skills (TAKS) in 2008 for all students. 
+Imagine that we are planning an experiment to test the effectiveness of a new algebra curriculum in Texas. We plan to randomize schools to either implement this new curriculum or to stick with the standard curriculum. We will evaluate the effectiveness of our curriculum using the passing rates from subsequent standardized tests at the school level. Imagine that when we were designing this RCT, we also had access to auxiliary data about all public schools in Texas, including demographic information and past passing rates. We intend to use this dataset to improve precision in our estimate using the methods implemented in the `dRCT` package. 
+
+A small version of this dataset is available in the `schools` dataset in this package. This data set contains publicly available information for 1,418 schools in Texas. The main outcome variable is `taks08`, the passing rate on the Texas Assessment of Knowledge and Skills (TAKS) in 2008 for all students. 
 ```{r}
 data(schools, package = "dRCTpower")
 summary(schools$taks08)
 ```
 
-There are also 13 alternative outcome variables, all beginning with `out`. The variables follow the naming structure `outm[B]08` where `[B]` takes the values of B, H, W, M, F, and E which indicate subgroups as in the table below and `08` indicates the 2007/8 school year. 
+There are also 13 alternative outcome variables, all beginning with `out`. The variables follow the naming structure `outm[B]08` where `[B]` takes the values of B, H, W, M, or F which indicate subgroups as in the table below and `08` indicates the 2007/8 school year. 
 
 | Code |   Subgroup   |
 |------|--------------|
@@ -99,10 +117,10 @@ For example, `taksCA_sum08_07` is the TAKS passing rate for the entire school in
 |   perc_stud_bil          | Percent ESL students                                                       |
 |   perc_stud_tag          | Percent Gifted & Talented students                                         |
 |   perc_campus_mobility   | Percent of students who missed more than six weeks of school               |
-|   female_mobile_particip | Percent of female students who participated in TAKS using a mobile system  |
+| taksC_mobile_particip_07 | Percent of a campus who participated in TAKS using a mobile system         |
+| district                 | School district                                                            |
+| charter_school           | Whether or not a school is a charter school or not                         |
 
-
-PUT THIS SOMEWHERE ELSE 
 
 There is some missing data in `schools`. The following table shows the number of missing values for each covariate with missing values: 
 ```{r}
@@ -114,66 +132,322 @@ schools %>%
   arrange(desc(value)) 
 ```
 
+The `dRCTpower` package handles missing values by replacing them with the mean of the column and creating an additional binary column to record what observations had missing values. The Shiny app will do this automatically. If you wish to handle missing values in another manner, do so before importing your dataset into the Shiny app. 
 
-Imagine that we are planning an experiment to test the effectiveness of a new algebra curriculum. We will determine effectiveness based on the TAKS passing rates and plan to use `schools` as an auxiliary data set to improve precision when analyzing our RCT. In reality, this RCT was already designed and implemented starting in the 2007-2008 school year. TAKS passing rates from 2008 were used as the outcome variable; we use this as our outcome variable too despite the fact that this RCT would have been designed without knowledge of passing rates in 2008. Instead, we would have used passing rates from 2007. 
+## Shiny App
 
-## Loading Data 
+The main contribution of the `dRCTpower` package is a Shiny app that leads the user through sample size exploration, step by step. We recommend that most users use this. However, most of the functions used to create the tables, figures, and calculations in the app are also available in the package, separate from the app. This section of the vignette explains how to use the Shiny app. However, if you wish, you may skip to the next section, where we demonstrate how to perform these calculations outside of the app. 
 
-To run the Shiny app, type `run_app` in your R console. A separate window will pop up with the app. You should see something that looks like this: 
+### Loading Data
 
-![](app_tab1.png)
+To run the Shiny app, type `run_app` in your R console. We used the seed `9381` for this example:
+```{r, eval = FALSE}
+run_app(seed = 9381)
+```
+
+
+A separate window will pop up with the app. You should see something that looks like this: 
+
+```{r, out.width = "99%", echo = FALSE}
+tab1 <- image_read("app_tab1.png")
+tab1_crop <- image_crop(tab1, "0x740")
+print(tab1_crop, info = FALSE)
+```
+
 To load the dataset for this vignette, choose "Use example data" from the dropdown menu under "Choose data option". This will load the `schools` dataset. If you wish to follow along with your own dataset, click "Browse" instead and navigate to the dataset you would like to use. Once you have done this, the second menu will populate with the names of the columns. 
 
 For this example, we will be using `taks08`, the passing rate on TAKS for all students and all grades in 2008. You may experiment with using the other outcome variables instead, if you wish.  
 
 Once you have uploaded the data and chosen an outcome variable, click the "Next: Choose Random Forest Variables" button. 
 
-## Choosing Random Forest Variables
+### Choosing Random Forest Variables
 
-The second tab allows the user to specify which variables should be included in a random forest. Our first priority is to remove all other outcome variables; these should not be used as covariates. After this, there are a few things to consider when choosing variables:
+The second tab allows the user to specify which variables should be included in a random forest. We use this random forest to get predictions for every observation in the data set. We will use the variance of the residuals, calculated from these predictions, as an estimate of $\sigma^2$ to calculate the necessary sample size. 
 
-* Correlation - if some variables are very correlated, it may not be necessary to include all of them
+Our first priority is to remove all other outcome variables; these should not be used as covariates. After this, there are a few things to consider when choosing variables:
+
+* Correlation - if some variables are very correlated, it may not be necessary to include all of them.
 * Time - A random forest with fewer variables will be faster.
 * Subgroups - you will only be able to look at subgroups formed from variables included here. 
+* Accuracy of predictions - if a covariate is useful for making predictions, it should be included, otherwise we will under-estimate how useful the auxiliary data is and may under-estimate the necessary sample size. 
 
-In general, we recommend starting with a large group of variables and potentially paring them down later. As we will see in the next section, the next tab displays correlations and allows for some exploratory analysis, potentially allowing the user to return to the first tab and change their original decisions. 
+In general, we recommend starting with a large group of variables and potentially paring them down later. As we will see in the next section, the next tab displays correlations and allows for some exploratory analysis, potentially allowing the user to return to the first tab and change their original decisions. For our first pass, we select all variables except for the additional outcome variables: 
+```{r, out.width = "99%", echo = FALSE}
+tab2 <- image_read("app_tab2.png")
+tab2_crop <- image_crop(tab2, "0x740")
+print(tab2_crop, info = FALSE)
+```
 
-## Random Forest Variable Investigation (change this name?)
+Once you have selected your variables, click on the "Next: Run Random Forest" button. This may take a few minutes to run. 
 
-## Initial Sample Size Calculation
+### Random Forest Variable Investigation 
 
-## Subgroup Sample Size Calculations
+The next tab provides useful information if you wish to change the variables included in the random forest. For instance, if the random forest took more than a few minutes to run, you may want to reduce the number of variables. Although the random forest has already run, other calculations in later tabs require running a second random forest, so this may still be worthwhile. The first visualization on this tab lists the 20 top variables in the original random forest, by variable importance. If you wish to use fewer variables, these 20 are a good place to start. 
 
-## Subgroup Investigation 
-
-
-## Things to think about/ask about
-
-1. The schools dataset is stored as a RDA in the data folder because that's how it's recommended for packages. But, then we can't include it in the Shiny app? Should I store it as a CSV? Or is there a way to include it as an example in the Shiny app so it doesn't need to be uploaded? 
-2. I want all the code needed to create schools.csv to be in the data-raw folder, which involves some of Charlotte's code and stuff from the edm tutorial. Need to ask Charlotte if there's anything private in there? 
-3. Need to remove the rownames in schools 
-4. Should I rename the covariates? Or spend a bunch of time talking about to decode what they mean? 
-
-One section per tab of the Shiny app?
-
-pick an example dataset (or a fake toy dataset) and run through it?
-technically it doesn't need to be a population a RCT was run on, it could just be any auxiliary dataset where it's concievable that an RCT might be run 
-does it have to be education related? 
-
-things the dataset should have:
--some missing values
--some correlated variables that are both highly predictive of the outcome 
--some data points that are hard to predict and some that are easier 
--start with Charlotte's CTA dataset and go from there? (can that one be publicaly used?)
--using CTA small dataset - there aren't any missing values in here? I can probably go back and recreate the dataset without it? or I can back out the missing values? 
-- I should have the top variable names and ideally missing columns for each of those, but I'm guessing I did this in a weird way? - so just adjust my data process so that I have all of the missing columns corresponding to the values I picked? (wait no, I did that? double check that was done)
+In our example, we note that very few of the demographic variables (only `perc_campus_mobility`, `district`, `teach_salary`, and `grade8_n`) appear in this list: 
+```{r, out.width = "99%", echo = FALSE}
+tab3 <- image_read("app_tab3.png")
+tab3_crop <- image_crop(tab3, "0x580")
+print(tab3_crop, info = FALSE)
+```
+We could remove some of the demographic variables, but since our random forest did not take that long to run even with all variables included, we will choose to leave them. 
 
 
-How do I write a vignette when most of it won't be in code chunks and is instead in a Shiny app? 
+This tab also displays a correlation plot for all numeric variables also in the top 20 most important variables. If you have a lot of variables, you may wish to remove some that are highly correlated with others that are left in the random forest. 
+```{r, out.width = "99%", echo = FALSE}
+tab3B <- image_read("app_tab3B.png")
+tab3B_crop <- image_crop(tab3B, "0x580")
+print(tab3B_crop, info = FALSE)
+```
+In our example, we see that many of the TAKS variables are unsurprisingly correlated with each other. If we had more variables also related to TAKS scores, we might suspect that we could remove those without significantly affecting the predictions. Unfortunately, we would need to investigate this ourselves, as the app only shows correlations for the top 20 variables due to space constraints. In general, the purpose of this plot is to point out patterns that might allow for removal of certain variables, although additional investigation outside of the app may be necessary. 
 
-couple of ideas:
-1. include screenshots of the shiny app in the vignette
-2. focus on the function options and not the shiny app? 
-3. Some combination of both? 
+The second plot on this tab visualizes the distribution of any user-specified numeric variable. The purpose of this figure is to allow the user to investigate any odd results. For example, if a variable showed up in the top 20 you weren't expecting, a good place to start is to look at the distribution. Similarly, if two variables were correlated, yet you expected them to be uncorrelated, this is a good place to start investigating this. 
+
+We might be curious why `grade8_n` showed up as an important variable. This plot lets us look at the distribution: 
+```{r, out.width = "99%", echo = FALSE}
+tab3C <- image_read("app_tab3C.png")
+print(tab3C, info = FALSE)
+```
+We notice that the number of students in eighth grade varies a lot between schools. It is also right-skewed. This raises an interesting question—would we need a smaller sample size if our RCT consisted mostly of schools with a lot of eighth graders? Or schools with a few? We will come back to this in a couple tabs. 
+
+If the random forest did not take too long and there's nothing suprising in the top 20 results, this tab can easily be skipped. 
+
+### Initial Sample Size Calculation
+
+The next tab provides an estimate of the necessary sample size in two different cases: with auxiliary data, and without. The without auxiliary data case is comparable to typical sample size calculations. The auxiliary data is used to get an estimate of the standard deviation of the outcome variable, but will not be used in analysis. 
+
+The with auxiliary data case assumes auxiliary data will be used for covariate adjustment in the analysis with the express purpose of improving the precision of the estimator, as in the `dRCT` package. 
+
+For our example data, and the default parameters, we get a sample size of 785 if we aren't going to use auxiliary data in analysis, and 250 if we are: 
+```{r, out.width = "99%", echo = FALSE}
+tab4 <- image_read("app_tab4.png")
+tab4_crop <- image_crop(tab4, "0x740")
+print(tab4_crop, info = FALSE)
+```
+This difference is not surprising—it means that a model trained on the observations in the auxiliary data are useful in making out-of-bag predictions for other observations in the auxiliary data. Thus, we expect that we will be able to remove some of the variation of the RCT observations by using predictions from this model. 
+
+The parameters in the panel to the left are set to the typical values used in sample calculations. However, if you know you will be using a different significance level or similar, these can be adjusted. 
+
+### Subgroup Sample Size Calculations
+
+This tab is the main tab of the app, where you can actually see sample size calculations. As a reminder, the app works by splitting the auxiliary data into subgroups and calculating the required sample size if that subgroup was the RCT and the rest of the data was the auxiliary data. There are three different ways of splitting the data into subgroups, which we will go through one by one. 
+
+It is important to note that the goal here is to give an overall range of reasonable sample sizes. You should not assume that the best estimate is the correct one, or that the estimate corresponding to any single subgroup is the correct one. The estimates should be considered together, and combined with domain knowledge to make a final decision. 
+
+#### Best Worst Case Scenario
+
+This is the most complicated way of splitting up the data, but is also where we recommend starting. If you choose this method, the Shiny app produces a table with 10 rows with two sample size estimates per row. Each row represents a subgroup. 
+
+```{r, out.width = "99%", echo = FALSE}
+tab5 <- image_read("app_tab5.png")
+print(tab5, info = FALSE)
+```
+
+Approximately 10% of the data is in each subgroup in this case—we can see this by noting the `Number of Observations in Subgroup` column shows that each subgroup has 142 observations. These subgroups were determined in the following way:
+
+1. Obtain the out of bag predictions from the initial random forest that was mentioned earlier.
+2. Calculate the error for each observation (out of bag prediction minus true outcome) and take the absolute value.
+3. Run a second random forest where the outcome is now the absolute value of the error calculated in the previous step. 
+4. Calculate the out of bag predictions from the second random forest and call this the "predicted error".
+5. Observations are split into groups based on the magnitude of the predicted error. Those with the smallest predicted error are put in group 1—the "best case scenario", while those with the largest predicted error are put in group 10—the "worst case scenario". 
+
+Intuitively, this separates observations based on how predictive we can expect the auxiliary model (the first random forest) to be for them. If the auxiliary model is very predictive for a group of observations, then this auxiliary data is likely to be very useful if the RCT population resembles this group of observations. If the RCT population instead resembles the observations that the auxiliary model is not predictive for, then covariate adjustment with the auxiliary data will likely result in fairly small gains in precision. Namely, this method separates observations without relying on an observation's error itself, which is more robust to odd patterns in the original random forest. Instead of grouping observations by the error from the first random forest, we use the second random forest so observations are grouped according to whether or not they have similar covariate values to other observations with high or low error. 
+
+In this example, we see that the sample sizes in both cases (with and without auxiliary data) increase as we go down the table. The "without auxiliary data" column is based on the standard deviation of the outcome in each subgroup, so this means that subgroups with higher numbers (larger predicted error) also have more variation in their outcome values. The "with auxiliary data" is based on the residuals obtained from the out of bag predictions of the original random forest, so this indicates that observations in the "best case scenario" had out of bag predictions much closer to their true outcomes than those in the "worst case scenario". 
+
+We observe a very large range—our sample size could potentially be as small as 20 if our RCT looks like our "best case scenario" observations, or as bad as 1,336 in the worst case scenario. We caution against using either one of these, instead we recommend combining this knowledge with information from the other subgroup methods. 
+
+#### Defined by Numeric Variable 
+
+Users can also create subgroups based on the values of any numerical variable. First, let's try creating 10 subgroups according to the values of `grade8_n`. We noticed that this variable was skewed to the right before, so maybe we are interested in how sample sizes might vary depending on the number of 8th graders schools in our RCT population have. 
+```{r, out.width = "99%", echo = FALSE}
+tab5A <- image_read("app_tab5A.png")
+print(tab5A, info = FALSE)
+```
+We see that we likely can get away with a smaller sample size if our RCT population consists of schools with a larger number of eighth graders. This is not unsurprising, since schools with more eighth graders—and therefore probably more students in general—probably have less variation in their TAKS passing rates year to year. Therefore, it is easier to make good predictions for these schools using TAKS passing rates for previous years. 
+
+
+We can also create subgroups according to the average teacher's salary at each school: 
+
+```{r, out.width = "99%", echo = FALSE}
+tab5B <- image_read("app_tab5B.png")
+print(tab5B, info = FALSE)
+```
+
+We see that the highest sample sizes in both scenarios (with and without auxiliary data) are for the subgroup with the lowest salaries. The subgroup that suggests the lowest sample sizes is different—it's the highest salary group if we are using auxiliary data and the 4th lowest group if we aren't. This raises a useful note—the ranking of subgroups with the highest or lowest sample sizes may not be the same for the with auxiliary data case as the without case, although they are likely to be similar. The without case measures the variance of the outcome, while the with case measures the variance of the residuals. Subgroups with highly-variable outcomes are likely to have highly-variable residuals, both because the residuals are directly dependent on the outcome, and because subgroups with highly-variable outcomes are likely hard to make good predictions for. 
+
+
+It's a bit difficult to draw conclusions from this table, since the groups are pretty small. We can adjust the number of groups to get more useful information: 
+
+```{r,out.width = "99%", echo = FALSE}
+tab5C <- image_read("app_tab5C.png")
+# CHANGE THIS TO BE FULL SCREEN 
+print(tab5C, info = FALSE)
+```
+
+Now we have 3 groups, and we can see that the sample size with auxiliary data is smallest for the largest group. Generally, if we knew that our RCT population was only going to include schools with fairly well-paid teachers, we might be able to choose a smaller sample size than the one we would need for the full population. 
+
+#### Defined by a Factor Variable 
+
+We can also define subgroups based on the value of a factor variable. Here, we create two subgroups based on whether a school is a charter school:
+
+```{r,out.width = "99%", echo = FALSE}
+tab5D <- image_read("app_tab5D.png")
+print(tab5D, info = FALSE)
+```
+Note the second column, the `Number of Observations in Subgroup` reveals a large discrepancy here. We only have 54 charter schools in our auxiliary data, compared to 1,364 non-charter schools. This is likely one of the reasons we will need a much larger sample size if our RCT population is charter schools only, versus non-charter schools. There also might just be more variation among charter schools, which we can investigate more on the next page. 
+
+
+This option is also useful if you wish to create a subgroup based on two or more covariates. For example, if we wanted to create subgroups based on whether a school was a charter school and their average teacher salary, we could create a factor variable that captures this and include it in our uploaded data set, and then create subgroups from it on this screen. 
+
+### Subgroup Investigation 
+
+The last tab allows the user to explore aspects of each subgroup. Based on the way subgroups were determined on the previous tab, on this tab a user can choose a subgroup and compare its distribution to the rest of the observations for any variable. They can also check if there were missing values. The purpose of the tab is to help the user start to form ideas about why a subgroup might have led to a particular sample size estimate, particularly if the results were surprising. 
+
+Here are the subgroup results for subgroup 10 from the best-worst case scenario. Essentially, this is the worst-case scenario. This subgroup is the observations with the highest predicted error; or, in other words, the observations for which we do not expect the auxiliary model to perform well. 
+```{r,out.width = "99%", echo = FALSE}
+tab6 <- image_read("app_tab6.png")
+print(tab6, info = FALSE)
+```
+From the first graph, we see that the distribution of the outcome variable, `taks08` is very different. This subgroup has a lot more variation than the rest of the population, likely a contributing factor to why they had high predicted error. 
+
+The second graph shows the proportion of observations in each group (subgroup or all other observations) according to how many NA values they had. For example, the first two bars on the left indicate that less than 10% of the observations in the subgroup had 0 NA values across all included variables. For all other observations not in the subgroup, the proportion was much higher—about 50% of the schools did not have any missing information. Looking at the bars to the right, we see that the subgroup has a much higher proportion of observations with higher counts of missing values compared to the observations not in the subgroup. 
+
+This provides one possible explanation for why we would need a larger sample size if our RCT consisted of schools similar to those in this subgroup. Missing values likely make it harder to make good predictions for this subgroup, meaning that our auxiliary model does not generalize well to this group and therefore the gains in precision are expected to be smaller.
+
+Let's also look at this for the charter school subgroups: 
+
+```{r,out.width = "99%", echo = FALSE}
+tab6B <- image_read("app_tab6B.png")
+print(tab6B, info = FALSE)
+```
+
+Earlier, we estimated that we would need a larger sample size if our RCT population consisted of charter schools, compared to if it consisted of non-charter schools. From the graph above, we see that charter schools (the subgroup) have much more variation in the outcome variable compared with non-charter schools (the general population). From the second graph, we also notice that there are many more charter schools missing more values than non-charter schools. These factors are likely contributing to why we need a larger sample size for charter schools. 
+
+We can also compare charter schools to non-charter schools along other variables. For instance, here is a comparison of `grade8_n`, the number of students in eighth grade at each school:
+
+```{r,out.width = "99%", echo = FALSE}
+tab6C <- image_read("app_tab6C.png")
+print(tab6C, info = FALSE)
+```
+
+Charter schools tend to have a much smaller number of students in eighth grade compared to non-charter schools. This suggests that the driving factor here might actually be number of students—charter schools tend to have fewer students, and schools with fewer students tend to have more variation in the percentage of students passing TAKS, and therefore making predictions for charter schools is harder than making predictions for non-charter schools. If number of students is the driving factor, this would also explains why `grade8_n` showed up as an important variable in the variable importance on the second tab, while `charter_school` did not. 
+
+To decide on a final sample size, we would try lots of different subgroup combinations, and make a final decision based on the overall range.  
+
+## Other Functions 
+
+We recommend using the Shiny app, but if you wish to avoid that, you can also do these calculations using functions from the package. 
+
+First, you should decide how to handle missing data. The `dRCTpower` package handles missing values by replacing them with the mean of the column and creating an additional binary column to record what observations had missing values. The Shiny app will do this automatically, but you can also use the available `mean_imputation` function: 
+```{r}
+schools_mod <- mean_imputation(schools)
+```
+
+We actually don't want the `_mis` columns for our other outcome variables, so we will remove them:
+```{r}
+schools_mod <- schools_mod %>%
+  select(-(starts_with("out") & ends_with('mis')))
+```
+
+```{r}
+schools_mod %>%
+  select(starts_with("_mis"))
+```
+
+Note that we now have 5 additional columns, ending with `_mis` and corresponding to the same 5 columns that had missing variables in the original dataset:
+```{r}
+tail(colnames(schools_mod), 5)
+```
+
+
+Next, you should run a random forest. In the Shiny app, you can select variables on the second tab. Here, you should select variables and run the `randomForest` function accordingly. Like before, we remove all of the alternate outcome variables but leave all other variables in. 
+```{r}
+set.seed(9381)
+rf <- randomForest(taks08 ~ . -outmB08 - outmH08 - outmW08 - outmM08 - outmF08 - outmE08, data = schools_mod)
+```
+
+We then obtain the out of bag predictions for all observations in the random forest: 
+```{r}
+preds <- predict(rf)
+```
+
+The main function for sample size calculations is the `get_samp_sizes` function. To do the calculation for charter schools versus non-charter schools, we type:
+```{r}
+X <- select(schools_mod, -taks08)
+effect_size <- 0.2 * sd(schools_mod$taks08)
+
+charter_results <- get_samp_sizes(Y = schools_mod$taks08, X, grouping_col = "charter_school", preds = preds, effect_size = effect_size, alpha = 0.05, beta = 0.20)
+```
+`get_samp_sizes` returns a list with two items. The first item is a table, similar to the one shown in the Shiny app:
+
+```{r}
+charter_results[[1]]
+```
+The `samp_size` column gives us the necessary sample size, assuming we are using auxiliary data in our analysis. The `samp_size_without` column assumes we are not using auxiliary data. The table also tells us the number of observations in each group, the mean squared error, the variance of the outcome variable, and the variance of the residuals. 
+
+To create subgroups based on a numeric variable, we first need to create a variable that captures the divisions we want. Let's divide observations into 10 groups based on teacher's salary again. To do this, we use the `numeric_subgroups` function, which will create a vector that defines subgroups according to a numeric variable. 
+```{r}
+salary_groups <- numeric_subgroups( Y = schools_mod$taks08, X, grouping_col = "teach_salary", preds = preds, max_groups = 10)
+table(salary_groups)
+```
+
+We can then pass this into `get_samp_sizes`. 
+```{r}
+X_salary <- cbind(X, salary_groups)
+salary_results <- get_samp_sizes(Y = schools_mod$taks08, X_salary, grouping_col = "salary_groups", preds = preds, effect_size = effect_size, alpha = 0.05, beta = 0.20)
+salary_results[[1]]
+```
+The results here, similar to the ones for charter schools, are slightly different from the ones in the Shiny app because of the randomness in a random forest. However, they are still very similar.
+
+Lastly, to create subgroups based on the best/worst case scenario idea explained above, we use the `error_subgroups` function. Like `numeric_subgroups`, this will return a vector of group assignments that can be passed into `get_samp_sizes`. Since this method requires running a second random forest, we also need to specify the variables again. We skip all of the outcome variables here (including `taks08`, since that's `Y`). 
+
+```{r}
+best_worst_groups <- error_subgroups(Y = schools_mod$taks08, X = X, preds = preds, variables = colnames(schools_mod)[8:68], num_groups = 10)
+
+table(best_worst_groups)
+```
+
+This gets passed into `get_samp_sizes`:
+```{r}
+X_best_worst <- cbind(X, best_worst_groups)
+best_worst_results <- get_samp_sizes(Y = schools_mod$taks08, X_best_worst, grouping_col = "best_worst_groups", preds = preds, effect_size = effect_size, alpha = 0.05, beta = 0.20)
+
+best_worst_results[[1]]
+```
+
+
+
+## References
+
+J. A. Gagnon-Bartsch, A. C. Sales, E. Wu, A. F.
+Botelho, J. A. Erickson, L. W. Miratrix, and N. T.
+Heffernan. Precise unbiased estimation in randomized
+experiments using auxiliary observational data.
+Journal of Causal Inference, 11(1):20220011, Jan.
+2023. Publisher: De Gruyter.
+
+J. Lowe, C. Z. Mann, J. Wang, A. Sales, and J. A. Gagnon-Bartsch.
+Power calculations for randomized controlled trials with auxiliary observational data. In B. Paaßen and C. D. Epp, editors, Proceedings
+of the 17th International Conference on Educational Data Mining,
+pages 469–475, Atlanta, Georgia, USA, July 2024. International Educational Data Mining Society.
+
+Texas Education Agency - Academic Excellence
+Indicator System. Access at:
+https://rptsvr1.tea.texas.gov/perfreport/aeis/
+index.html.
+
+AEIS Explanation of Masking Rules. Access at:
+https://rptsvr1.tea.texas.gov/perfreport/aeis/2008/
+masking.html.
+
+Texas Assessment of Knowledge and Skills (TAKS),
+2017. Access at: https://tea.texas.gov/studentassessment/testing/student-assessment-overview/2017-
+ig-taks.pdf.
+
+J. Wittes. Sample Size Calculations for Randomized
+Controlled Trials. Epidemiologic Reviews, 24(1):39–53,
+July 2002.
+
 
 
